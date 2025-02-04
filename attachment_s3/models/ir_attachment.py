@@ -6,6 +6,7 @@ import io
 import logging
 import os
 from urllib.parse import urlsplit
+import mimetypes
 
 from odoo import _, api, exceptions, models
 
@@ -139,25 +140,53 @@ class IrAttachment(models.Model):
 
     @api.model
     def _store_file_write(self, key, bin_data):
+        """Writes a file to S3 storage, including mimetype and filesize as metadata."""
         location = self.env.context.get("storage_location") or self._storage()
         if location == "s3":
             bucket = self._get_s3_bucket()
             obj = bucket.Object(key=key)
+
+            if self:
+                mimetype = self.mimetype
+            else:
+                # Retrieve or guess the mimetype
+                guessed_mimetype, _ = mimetypes.guess_type(key)
+                mimetype = guessed_mimetype or "application/octet-stream"
+
+            # Calculate the file size
+            file_size = len(bin_data)
+
+            # Log metadata for the S3 object
+            metadata = {
+                "mimetype": mimetype,
+                "filesize": str(
+                    file_size
+                ),  # Store as string because S3 metadata only accepts strings
+            }
+
             with io.BytesIO() as file:
                 file.write(bin_data)
                 file.seek(0)
-                filename = "s3://%s/%s" % (bucket.name, key)
+                filename = f"s3://{bucket.name}/{key}"
                 try:
-                    obj.upload_fileobj(file)
-                except ClientError as error:
-                    # log verbose error from s3, return short message for user
+                    # Upload the file with metadata
+                    obj.upload_fileobj(
+                        file, ExtraArgs={"Metadata": metadata, "ContentType": mimetype}
+                    )
+                    _logger.info(
+                        "File '%s' successfully uploaded to S3 with metadata: %s",
+                        filename,
+                        metadata,
+                    )
+                except Exception as error:
+                    # Log the error and raise a user-friendly message
                     _logger.exception("Error during storage of the file %s" % filename)
                     raise exceptions.UserError(
                         _("The file could not be stored: %s") % str(error)
                     )
         else:
-            _super = super()
-            filename = _super._store_file_write(key, bin_data)
+            # Fallback to the default storage mechanism
+            filename = super(IrAttachment, self)._store_file_write(key, bin_data)
         return filename
 
     @api.model
@@ -181,3 +210,7 @@ class IrAttachment(models.Model):
                     _logger.exception("Error during deletion of the file %s" % fname)
         else:
             super()._store_file_delete(fname)
+
+    # def _migrate_to_object_storage(self):
+    #     self.ensure_one()
+    #     if self.binary

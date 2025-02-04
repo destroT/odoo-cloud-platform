@@ -78,8 +78,8 @@ class IrAttachment(models.Model):
         # migration here.
         # Typical example is images of ir.ui.menu which are updated in
         # ir.attachment at every upgrade of the addons
-        if update_module:
-            self.env["ir.attachment"].sudo()._force_storage_to_object_storage()
+        # if update_module:
+        #     self.env["ir.attachment"].sudo()._force_storage_to_object_storage()
 
     @property
     def _object_storage_default_force_db_config(self):
@@ -359,7 +359,7 @@ class IrAttachment(models.Model):
             total = len(attachment_ids)
             start_time = time.time()
             _logger.info(
-                "Moving %d attachments from %s to" " DB for fast access", total, storage
+                "Moving %d attachments from %s to DB for fast access", total, storage
             )
             current = 0
             for attachment_id in attachment_ids:
