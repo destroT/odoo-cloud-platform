@@ -39,7 +39,7 @@ class IrAttachment(models.Model):
         The following environment variables can be set:
         * ``AWS_HOST``
         * ``AWS_REGION``
-        * ``AWS_ACCESS_KEY_ID``
+        * ``AWS_ACCESS_KEY_ID`
         * ``AWS_SECRET_ACCESS_KEY``
         * ``AWS_BUCKETNAME``
 
@@ -146,12 +146,11 @@ class IrAttachment(models.Model):
             bucket = self._get_s3_bucket()
             obj = bucket.Object(key=key)
 
-            if self:
-                mimetype = self.mimetype
-            else:
-                # Retrieve or guess the mimetype
-                guessed_mimetype, _ = mimetypes.guess_type(key)
-                mimetype = guessed_mimetype or "application/octet-stream"
+            mimetype = (
+                self.mimetype
+                if self.exists()
+                else self.env.context.get("mimetype", "application/octet-stream")
+            )
 
             # Calculate the file size
             file_size = len(bin_data)

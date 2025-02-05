@@ -7,7 +7,7 @@ import os
 import time
 from contextlib import closing, contextmanager
 from distutils.util import strtobool
-
+from base64 import b64encode
 import psycopg2
 
 import odoo
@@ -183,6 +183,7 @@ class IrAttachment(models.Model):
 
     def _get_datas_related_values(self, data, mimetype):
         storage = self.env.context.get("storage_location") or self._storage()
+        self = self.with_context(mimetype=mimetype)
         if data and storage in self._get_stores():
             if self._store_in_db_instead_of_object_storage(data, mimetype):
                 # compute the fields that depend on datas
